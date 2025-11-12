@@ -20,10 +20,10 @@ guppy_basecaller -i [input_raw_data_dir] -r -s [output_dir] --detect_barcodes -c
 
 ```bash
 # Basecalling to BAM
-dorado basecaller dna_r10.4.1_e8.2_400bps_sup@v5.0.0 [input_pod5_dir] -r --kit-name SQK-RBK114-24 --no-trim --modified-bases 4mC_5mC > [basecalled.bam]
+dorado basecaller dna_r10.4.1_e8.2_400bps_sup@v5.0.0 [input_pod5_dir] -r --kit-name SQK-RBK114-24 --no-trim --emit-fastq > [basecalled.fastq]
 
 # Demultiplexing
-dorado demux --output-dir [output_demux_dir] --kit-name SQK-RBK114-24 [basecalled.bam]
+dorado demux --output-dir [output_demux_dir] --kit-name SQK-RBK114-24 [basecalled.fastsq]
 ```
 
 ## 2\. Read Pre-processing
@@ -41,7 +41,7 @@ porechop -i [input_barcode.fastq] -o [trimmed.fastq] -t 10
 *Threshold:* Minimum length 100 bp.
 
 ```bash
-cat [trimmed.fastq] | NanoFilt -l 100 > [filtered.fastq]
+cat [trimmed.fastq] | NanoFilt -q 9 -l 100 > [filtered.fastq]
 ```
 
 ### 2.3. Format Conversion (Seqtk)
