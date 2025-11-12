@@ -1,9 +1,5 @@
 # Appendix B: Bioinformatic Pipeline for Wetland Ecosystems
 
-## Overview
-
-This repository documents the computational framework used in *Publication II: Real-time Pathogen, Resistance, and Host Range Characterization*. The pipeline integrates multi-omic data from passive water samplers, utilizing both standard long-read assemblers and specialized De Bruijn graph methods, followed by rigorous polishing, functional annotation, and stringent pathogen identification on both reads and assemblies.
-
 ## 1\. Basecalling & Demultiplexing
 
 ### 1.1. Basecalling (Dorado)
