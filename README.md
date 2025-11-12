@@ -1,187 +1,279 @@
-# Appendix A: Bioinformatic Pipeline for Air Monitoring
+# Bioinformatic Appendices
 
-## Overview
+This document details the computational pipelines utilized for the analysis of environmental nanopore sequencing data. It is organized by publication and analytical stage. All commands are presented as executable one-liners to facilitate reproducibility and adherence to FAIR data principles.
 
-This repository documents the computational framework used in *Publication I: Air Monitoring by Nanopore Sequencing*. The pipeline is designed for ultra-low-biomass metagenomics, characterizing microbial diversity, function, and antimicrobial resistance (AMR) from active air samples.
+## Appendix A: Air Microbiome Surveillance (Publication I)
 
-## 1\. Basecalling & Demultiplexing
+**Overview:** A tailored pipeline for ultra-low-biomass bioaerosol samples, transitioning from high-accuracy basecalling to de novo assembly and taxonomic classification.
 
-### 1.1. Controlled/Natural Environments (Guppy)
+### A.1. Basecalling
 
+**1.1. Controlled and Natural Environments (Guppy)**
 *Model:* High Accuracy (HAC) for R10.4.1 flow cells.
 
 ```bash
 guppy_basecaller -i [input_raw_data_dir] -r -s [output_dir] --detect_barcodes -c dna_r10.4.1_e8.2_400bps_hac.cfg -x "cuda:0"
 ```
 
-### 1.2. Urban Environment (Dorado)
-
-*Model:* Super Accuracy (SUP) v5.0.0 with modified base retention (4mC/5mC).
+**1.2. Urban Environment (Dorado)**
+*Model:* Super Accuracy (SUP) with modified base retention (4mC/5mC).
 
 ```bash
-# Basecalling to BAM
 dorado basecaller dna_r10.4.1_e8.2_400bps_sup@v5.0.0 [input_pod5_dir] -r --kit-name SQK-RBK114-24 --no-trim --emit-fastq > [basecalled.fastq]
-
-# Demultiplexing
-dorado demux --output-dir [output_demux_dir] --kit-name SQK-RBK114-24 [basecalled.fastsq]
 ```
 
-## 2\. Read Pre-processing
+**1.3. Demultiplexing (Dorado)**
 
-### 2.1. Adapter Trimming (Porechop)
+```bash
+dorado demux --output-dir [output_demux_dir] --kit-name SQK-RBK114-24 [basecalled.fastq]
+```
 
+### A.2. Read Pre-processing
+
+**2.1. Adapter Trimming (Porechop)**
 *Purpose:* Removal of sequencing adapters and barcodes.
 
 ```bash
-porechop -i [input_barcode.fastq] -o [trimmed.fastq] -t 10
+porechop -i [input_barcode.fastq] -o [output_trimmed.fastq] -t 10
 ```
 
-### 2.2. Quality & Length Filtering (NanoFilt)
-
-*Threshold:* Minimum length 100 bp.
+**2.2. Quality and Length Filtering (NanoFilt)**
+*Thresholds:* Minimum length 100 bp.
 
 ```bash
-cat [trimmed.fastq] | NanoFilt -q 9 -l 100 > [filtered.fastq]
+cat [input_trimmed.fastq] | NanoFilt -l 100 -q 9 > [output_filtered.fastq]
 ```
 
-### 2.3. Format Conversion (Seqtk)
+### A.3. Metagenomic Assembly and Polishing
 
-*Purpose:* Generating FASTA files for downstream functional screening.
+**3.1. De Novo Assembly (MetaFlye)**
+*Strategy:* Long-read metagenomic assembly using the Nano-HQ mode.
 
 ```bash
-seqtk seq -A [filtered.fastq] > [filtered.fasta]
+flye --meta --nano-hq [input_filtered.fastq] --threads [threads] -o [output_assembly_dir]
 ```
 
-## 3\. Metagenomic Assembly & Polishing
-
-### 3.1. De Novo Assembly (MetaFlye)
-
-*Strategy:* Long-read metagenomic assembly using Nano-HQ mode.
+**3.2. Read Mapping for Polishing (Minimap2)**
+*Purpose:* Aligning filtered reads to the draft assembly.
 
 ```bash
-flye --meta --nano-hq [filtered.fastq] --threads [threads] -o [assembly_dir]
+minimap2 -ax map-ont -t [threads] [assembly.fasta] [input_filtered.fastq] > [alignment.sam]
 ```
 
-### 3.2. Read Mapping for Polishing (Minimap2)
-
-*Purpose:* Mapping reads to the draft assembly for consensus correction.
+**3.3. Alignment Sorting (Samtools)**
 
 ```bash
-minimap2 -ax map-ont -t [threads] [assembly.fasta] [filtered.fastq] > [alignment.sam]
+samtools view -b -@ [threads] [alignment.sam] | samtools sort -@ [threads] -o [sorted_alignment.bam]
 ```
 
-### 3.3. Alignment Processing (Samtools)
-
-```bash
-samtools view -b -@ [threads] [alignment.sam] | samtools sort -@ [threads] -o [sorted.bam]
-```
-
-### 3.4. Polishing (Racon)
-
+**3.4. Assembly Polishing (Racon)**
 *Purpose:* Consensus correction of the draft assembly.
 
 ```bash
-racon -t [threads] [filtered.fastq] [alignment.sam] [assembly.fasta] > [polished_assembly.fasta]
+racon -t [threads] [input_filtered.fastq] [alignment.sam] [assembly.fasta] > [polished_assembly.fasta]
 ```
 
-## 4\. Taxonomic Classification
+### A.4. Taxonomic Classification
 
-### 4.1. Read-Level Classification (Kraken2)
+**4.1. Read-Level Classification (Kraken2)**
+*Database:* NCBI nt database with memory mapping enabled.
 
 ```bash
-kraken2 --db [kraken_db] --use-names --report [report.txt] --output [output.txt] [filtered.fastq] --memory-mapping --threads 28
+kraken2 --db [kraken_db_path] --use-names --report [report_read.txt] --output [output_read.txt] [input_filtered.fastq] --memory-mapping --threads 28
 ```
 
-### 4.2. Contig-Level Classification (Kraken2)
+**4.2. Contig-Level Classification (Kraken2)**
 
 ```bash
-kraken2 --db [kraken_db] --use-names --report [report_contig.txt] --output [output_contig.txt] [polished_assembly.fasta] --memory-mapping --threads 28
+kraken2 --db [kraken_db_path] --use-names --report [report_contig.txt] --output [output_contig.txt] [polished_assembly.fasta] --memory-mapping --threads 28
 ```
 
-## 5\. Metagenomic Binning
+## Appendix B: Wetland Ecosystem Surveillance (Publication II)
 
-### 5.1. Alignment for Coverage (Minimap2)
+**Overview:** An integrated multi-omic framework processing shotgun metagenomics, RNA viromics, and targeted amplicons (eDNA/AIV) from passive water samplers.
 
-*Note:* The `-L` flag is used for long-read mapping context.
+### B.1. Basecalling and Pre-processing
+
+**1.1. Basecalling (Dorado)**
+*Model:* Super Accuracy (SUP) v5.0.0.
 
 ```bash
-minimap2 -ax map-ont -L -t 20 [polished_assembly.fasta] [filtered.fastq] > [binning_alignment.sam]
+dorado basecaller dna_r10.4.1_e8.2_400bps_sup@v5.0.0 [input_pod5_dir] -r --kit-name SQK-RBK114-24 --no-trim --emit-fastq > [basecalled.fastq]
 ```
 
-### 5.2. BAM Sorting (Samtools)
+**1.2. Quality Filtering (NanoFilt)**
+*Standard Metagenomics/Virome:* Length \> 100 bp, Q-score \> 9.
 
 ```bash
-samtools sort -T tmp-samtools -@ 20 -O BAM -o [binning_sorted.bam] [binning_alignment.sam]
-samtools index -@ 20 -b [binning_sorted.bam]
+cat [input.fastq] | NanoFilt -l 100 -q 9 > [filtered_metagenomics.fastq]
 ```
 
-### 5.3. Initial Binning (MetaWRAP)
-
-*Strategy:* Ensemble binning using MetaBAT2, MaxBin2, and CONCOCT.
+*Targeted AIV Sequencing:* Relaxed length (\> 150 bp) and Q-score (\> 8).
 
 ```bash
-metawrap binning --metabat2 --maxbin2 --concoct -t 20 -m 64 --single-end --universal --run-checkm -l 10000 -a [polished_assembly.fasta] -o [output_dir] [filtered.fastq]
+cat [input_aiv.fastq] | NanoFilt -l 150 -q 8 > [filtered_aiv.fastq]
 ```
 
-### 5.4. Bin Refinement (MetaWRAP)
+### B.2. Taxonomic Classification
 
-*Thresholds:* \>50% Completeness (`-c 50`), \<10% Contamination (`-x 10`).
+**2.1. Metagenomic Profiling (Kraken2)**
 
 ```bash
-metawrap bin_refinement -o [refinement_dir] -t 20 -A [metabat2_bins] -B [maxbin2_bins] -C [concoct_bins] -c 50 -x 10
+kraken2 --db [nt_core_db] --threads [threads] --output [output.kraken] --report [report.txt] [filtered_metagenomics.fastq]
 ```
 
-## 6\. Functional Annotation
-
-### 6.1. Gene Prediction (Prodigal)
-
-*Purpose:* Predicting open reading frames (ORFs) on polished contigs using metagenomic mode (`-p meta`).
+**2.2. Normalization (SeqKit)**
+*Threshold:* Downsampling to 87,000 reads.
 
 ```bash
-prodigal -i [polished_assembly.fasta] -o [genes.gff] -a [proteins.faa] -p meta
+seqkit sample -n 87000 -s 100 [input.fastq] > [normalized.fastq]
 ```
 
-### 6.2. Orthology Assignment (eggNOG-mapper)
+### B.3. Metagenomic Assembly and Polishing
 
-*Database:* bactNOG; *Search Mode:* DIAMOND.
+**3.1. Assembly Strategy 1 (metaFlye)**
 
 ```bash
-emapper.py -m diamond --data_dir [data_dir] -d bactNOG -i [proteins.faa] --output [output_prefix] --override --target_orthologs all --query-cover 20 --subject-cover 20 --tax_scope auto --cpu [threads]
+flye --nano-hq [filtered_metagenomics.fastq] --out-dir [output_dir] --threads [threads] --meta
 ```
 
-### 6.3. Protein Alignment (DIAMOND BLASTx)
-
-*Purpose:* Aligning reads or contigs against large protein databases (e.g., NR or VFDB).
-
-**For Reads (FASTQ):**
+**3.2. Assembly Strategy 2 (nanoMDBG)**
+*Note:* Optimized De Bruijn graph assembly for fragmented environmental DNA.
 
 ```bash
-diamond blastx -d [database.dmnd] -q [filtered.fastq] -o [output.dmnd_out] --max-target-seqs 1 --threads 20 -f 6 qseqid sseqid pident length qstart qend sstart send evalue bitscore staxids salltitles sscinames
+nanoMDBG [filtered_metagenomics.fastq] [k-mer_size] [output_prefix]
 ```
 
-**For Contigs (FASTA):**
+**3.3. Polishing (Medaka)**
+*Purpose:* Final consensus polishing using the specific R10.4.1 model.
 
 ```bash
-diamond blastx -d [database.dmnd] -q [polished_assembly.fasta] -o [output.dmnd_out] --max-target-seqs 1 --threads 20 -f 6 qseqid sseqid pident length qstart qend sstart send evalue bitscore staxids salltitles sscinames
+medaka_consensus -i [input_reads.fastq] -d [assembly_draft.fasta] -o [output_dir] -m r1041_e82_400bps_sup_v5.0.0
 ```
 
-### 6.4. Antimicrobial Resistance Detection
+### B.4. Functional Annotation (Pathogen & AMR)
 
-**AMRFinderPlus:**
+**4.1. Antimicrobial Resistance Detection (AMRFinderPlus)**
+*Mode:* "Plus" enabled for stress response and virulence genes.
 
 ```bash
-amrfinder --threads 10 -n [filtered.fasta] -d [database_path] > [output_amrfinder.txt]
+amrfinder -n [input.fasta] --plus --threads [threads] > [amr_report.tsv]
 ```
 
-**ABRicate:**
-*Note:* Run for specific databases (e.g., `ncbi`, `card`, `resfinder`).
+**4.2. Virulence Factor Detection (DIAMOND)**
+*Target:* Virulence Factor Database (VFDB) core proteins (e.g., *ctxA/B*).
 
 ```bash
-abricate --db [database_name] [filtered.fasta] --threads 10 > [output_abricate.txt]
+diamond blastx -d [vfdb_core.dmnd] -q [input_reads.fasta] -o [matches.tsv] -f 6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore
 ```
 
-**ABRicate Summary:**
+### B.5. Targeted Analysis (eDNA & AIV)
+
+**5.1. Vertebrate Metabarcoding (OBITools/VSEARCH)**
+*Pipeline:* Demultiplexing, primer trimming, and OTU clustering.
 
 ```bash
-abricate --summary [list_of_output_files] > [summary.tab]
+obimultiplex -t [tag_file] -u [unidentified.fastq] [input.fastq] > [demultiplexed.fastq]
+cutadapt -g [F_primer] -a [R_primer] -o [trimmed.fastq] [demultiplexed.fastq]
+vsearch --cluster_size [trimmed.fasta] --id 0.97 --centroids [otus.fasta] --uchime_denovo [otus.fasta] --nonchimeras [otus_clean.fasta]
+```
+
+**5.2. AIV Consensus Generation**
+
+```bash
+minimap2 -ax map-ont [reference_segment.fasta] [filtered_aiv.fastq] | samtools sort > [aligned.bam]
+bcftools mpileup -f [reference_segment.fasta] [aligned.bam] | bcftools call -c | vcfutils.pl vcf2fq > [consensus.fastq]
+```
+
+### B.6. Pathogen Detection & MEGAN Post-Processing
+
+**6.1. FASTQ to FASTA Conversion (Seqtk)**
+
+```bash
+seqtk seq -a [input.fastq] > [raw.fasta]
+```
+
+**6.2. Read Sorting (SeqKit)**
+
+```bash
+seqkit sort -n -w 0 --quiet [raw.fasta] -o [sorted.fasta]
+```
+
+**6.3. Read-Level Alignment (Minimap2)**
+*Purpose:* Mapping reads to the NCBI-NT MMI index with high stringency.
+
+```bash
+minimap2 -ax map-ont -k 19 -w 10 -I 10G -g 5000 -r 2000 -N 100 --lj-min-ratio 0.5 -A 2 -B 5 -O 5,56 -E 4,1 -z 400,50 --sam-hit-only -t [threads] --split-prefix [temp_idx] [minimap2_db_mmi] [sorted.fasta] > [aligned.sam]
+```
+
+**6.4. SAM to RMA Conversion (MEGAN6)**
+*Filtered (Stringent):*
+
+```bash
+sam2rma -i [aligned.sam] -r [sorted.fasta] -o [filtered.rma] -lg -alg longReads -t [threads] -mdb [megan_db_nucl] -ram readCount --minSupportPercent 0.01
+```
+
+**6.5. Taxonomic Information Extraction (rma2info)**
+*Purpose:* Extracting assignments from Read-Level RMA files.
+
+```bash
+rma2info -i [filtered.rma] -o [taxonomy.r2c.txt] -r2c Taxonomy -n
+rma2info -i [filtered.rma] -c2c Taxonomy -n -r -o [taxonomy.c2c.txt]
+```
+
+**6.6. Report Conversion**
+
+```bash
+python3 Convert_MEGAN_RMA_NCBI_c2c-snake.py --input [taxonomy.c2c.txt] --outname1 [names.temp.txt] --outname2 [codes.temp.txt] --mpa [report.mpa.txt] --kreport [report.kreport] --readsfile [read_counts.txt]
+```
+
+**6.7. Assembly-Level Pathogen Detection (metaMDBG)**
+*Purpose:* Stringent pathogen identification applied directly to De Bruijn Graph assemblies.
+
+**Step 1: Decompression**
+
+```bash
+gunzip -c [mdbg_contigs.fasta.gz] > [mdbg_contigs.fasta]
+```
+
+**Step 2: Contig Alignment (Minimap2)**
+
+```bash
+minimap2 -ax map-ont -k 19 -w 10 -I 10G -g 5000 -r 2000 -N 100 --lj-min-ratio 0.5 -A 2 -B 5 -O 5,56 -E 4,1 -z 400,50 --sam-hit-only -t [threads] [minimap2_db_mmi] [mdbg_contigs.fasta] > [mdbg_aligned.sam]
+```
+
+**Step 3: RMA Conversion (MEGAN6)**
+
+```bash
+sam2rma -i [mdbg_aligned.sam] -r [mdbg_contigs.fasta] -o [mdbg.rma] -lg -alg longReads -t [threads] -mdb [megan_db_nucl] -ram readCount --minSupportPercent 0.01
+```
+
+**Step 4: Taxonomic Information Extraction (rma2info)**
+
+```bash
+rma2info -i [mdbg.rma] -o [mdbg.r2c.txt] -r2c Taxonomy -n
+rma2info -i [mdbg.rma] -c2c Taxonomy -n -r -o [mdbg.c2c.txt]
+```
+
+**Step 5: Report Conversion**
+
+```bash
+python3 Convert_MEGAN_RMA_NCBI_c2c-snake.py --input [mdbg.c2c.txt] --outname1 [names.temp.txt] --outname2 [codes.temp.txt] --mpa [report.mpa.txt] --kreport [report.kreport] --readsfile [contig_counts.txt]
+```
+
+## B.7. Genome Annotation & Gene Prediction
+
+**7.1. Gene Prediction (Prodigal)**
+*Purpose:* Predicting open reading frames (ORFs) on metaMDBG assemblies.
+
+```bash
+# Note: Uses the decompressed fasta from Step 6.7
+prodigal -i [mdbg_contigs.fasta] -o [output.gff] -a [output.faa] -p meta -f gff
+```
+
+**7.2. Functional Annotation (Prokka)**
+*Purpose:* Rapid annotation of prokaryotic genomes. Applied to both Racon-polished and MDBG assemblies.
+
+```bash
+prokka --force --quiet --outdir [output_dir] --prefix [sample_id] --cpus [threads] [input_assembly.fasta]
 ```
