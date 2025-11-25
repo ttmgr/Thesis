@@ -1,16 +1,15 @@
-````markdown
 # Bioinformatic Appendices
 
 This document provides a comprehensive specification of the computational pipelines established for the real-time genomic surveillance of aerial and aquatic microbiomes. It consolidates the workflows validated in Reska et al. (2024) and Perlas et al. (2025). All processing steps are presented as executable command-line instructions to facilitate the replication of these analyses in diverse environmental monitoring contexts.
 
 ## Appendix A: Air Microbiome Surveillance (Publication I)
 
-[cite_start]**Overview:** A specialized pipeline optimized for the analysis of ultra-low-biomass bioaerosol samples[cite: 16], addressing the specific challenges of high DNA fragmentation and low input yields.
+**Overview:** A specialized pipeline optimized for the analysis of ultra-low-biomass bioaerosol samples[cite: 16], addressing the specific challenges of high DNA fragmentation and low input yields.
 
 ### A.1. Basecalling and Demultiplexing
 
 **1.1. Controlled and Natural Environments (Guppy)**
-[cite_start]*Model:* High Accuracy (HAC) model for R10.4.1 flow cells[cite: 83].
+*Model:* High Accuracy (HAC) model for R10.4.1 flow cells[cite: 83].
 
 ```bash
 guppy_basecaller -i [input_raw_data_dir] -r -s [output_dir] --detect_barcodes -c dna_r10.4.1_e8.2_400bps_hac.cfg -x "cuda:0"
