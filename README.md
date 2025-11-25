@@ -1,6 +1,6 @@
 # Bioinformatic Appendices
 
-This document provides a comprehensive specification of the computational pipelines established for the real-time genomic surveillance of aerial and aquatic microbiomes. It consolidates the workflows validated in Reska et al. (2024) and Perlas et al. (2025). All processing steps are presented as executable command-line instructions to facilitate the replication of these analyses in diverse environmental monitoring contexts.
+This document provides a comprehensive specification of the computational pipelines established for the cumulative dissertation titled **"Genomic Surveillance of Aerial and Aquatic Microbiomes by Nanopore Sequencing."** It consolidates the bioinformatic workflows validated in the constituent studies **Reska et al. (2024)** and **Perlas et al. (2025)**. All processing steps are presented as executable command-line instructions to ensure the reproducibility of these real-time genomic surveillance frameworks in diverse environmental monitoring contexts.
 
 ## Appendix A: Air Microbiome Surveillance (Publication I)
 
