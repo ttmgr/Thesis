@@ -2,6 +2,48 @@
 
 This document provides a comprehensive specification of the computational pipelines established for the cumulative dissertation titled **"Genomic Surveillance of Aerial and Aquatic Microbiomes by Nanopore Sequencing."** It consolidates the bioinformatic workflows validated in the constituent studies **Reska et al. (2024)** and **Perlas et al. (2025)**. All processing steps are presented as executable command-line instructions to ensure the reproducibility of these real-time genomic surveillance frameworks in diverse environmental monitoring contexts.
 
+## Software Versions & Tools
+
+The following table details the specific software versions employed in each study.
+
+| Tool | Publication I (Air) | Publication II (Wetlands) | Purpose |
+| :--- | :--- | :--- | :--- |
+| **Basecalling** | | | |
+| MinKNOW | v23.04.3 / v23.04.5 | v24.11.10 | Data acquisition & device control |
+| Guppy | v6.3.2 | — | High-accuracy basecalling (R10.4.1) |
+| Dorado | v4.3.0 | v5.0.0 | Super-accuracy basecalling (R10.4.1) |
+| **Pre-processing** | | | |
+| Porechop | v0.2.3 | v0.2.4 | Adapter and barcode trimming |
+| NanoFilt | v2.8.0 | v2.8.0 | Read quality and length filtering |
+| SeqKit | v2.8.2 | v2.3.0 | Read sampling, sorting, and formatting |
+| **Taxonomy** | | | |
+| Kraken2 | v2.0.7 | v2.1.2 | Metagenomic taxonomic classification |
+| MEGAN-CE | — | v6.21.1 | Lowest Common Ancestor (LCA) analysis |
+| OBITools4 | — | v1.3.1 | Metabarcoding demultiplexing |
+| VSEARCH | — | v2.21 | OTU clustering and chimera removal |
+| Cutadapt | — | v4.2 | Primer trimming (amplicon data) |
+| **Assembly** | | | |
+| MetaFlye | v2.9.1 | v2.9.6 | Long-read de novo assembly |
+| nanoMDBG | — | v1.1 | De Bruijn graph assembly (low biomass) |
+| Minimap2 | v2.17 | v2.28 | Read mapping / polishing alignment |
+| Racon | v1.5 | v1.5.0 | Assembly polishing (Consensus) |
+| Medaka | — | v1.7.2 | Assembly polishing (Neural network) |
+| **Downstream** | | | |
+| MetaWRAP | v1.3 | — | Metagenomic binning wrapper |
+| CheckM | v1.2.2 | — | MAG quality assessment |
+| AMRFinderPlus | v3.12.8 | v4.0.23 | Antimicrobial resistance gene detection |
+| ABRicate | v1.0.1 | — | Mass screening of contigs |
+| DIAMOND | — | v2.1.13 | Protein alignment (Virulence/Viral) |
+| Prokka | — | v1.14.5 | Prokaryotic genome annotation |
+| Prodigal | — | v2.6.3 | Gene prediction |
+| PlasmidFinder | — | v2.1.6 | Plasmid detection |
+| MAFFT | — | v7.526 | Multiple sequence alignment |
+| IQ-TREE2 | — | v2.3.4 | Phylogeny inference |
+| SAMtools | — | v1.17 | Alignment file processing |
+| BCFtools | — | v1.17 | Variant calling / Consensus generation |
+
+---
+
 ## Appendix A: Air Microbiome Surveillance (Publication I)
 
 **Overview:** A specialized pipeline optimized for the analysis of ultra-low-biomass bioaerosol samples, addressing the specific challenges of high DNA fragmentation and low input yields through sensitive basecalling, rigorous assembly, and genome binning.
@@ -9,14 +51,14 @@ This document provides a comprehensive specification of the computational pipeli
 ### A.1. Basecalling and Demultiplexing
 
 **1.1. Controlled and Natural Environments (Guppy)**
-*Model:* High Accuracy (HAC) model (`dna_r10.4.1_e8.2_400bps_hac`)
+*Model:* High Accuracy (HAC) model for R10.4.1 flow cells.
 
 ```bash
 guppy_basecaller -i [input_raw_data_dir] -r -s [output_dir] --detect_barcodes -c dna_r10.4.1_e8.2_400bps_hac.cfg -x "cuda:0"
 ````
 
 **1.2. Urban Environment (Dorado)**
-*Model:* High Accuracy (HAC) model (`dna_r10.4.1_e8.2_400bps_hac`)
+*Model:* High Accuracy (HAC) model (`dna_r10.4.1_e8.2_400bps_hac`) was used for validation.
 
 ```bash
 dorado basecaller dna_r10.4.1_e8.2_400bps_hac@v4.3.0 [input_pod5_dir] -r --kit-name SQK-RBK114-24 --no-trim --emit-fastq > [basecalled.fastq]
