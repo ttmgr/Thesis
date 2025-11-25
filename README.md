@@ -33,13 +33,13 @@ The following table details the specific software versions employed in each stud
 | CheckM | v1.2.2 | — | MAG quality assessment |
 | AMRFinderPlus | v3.12.8 | v4.0.23 | Antimicrobial resistance gene detection |
 | ABRicate | v1.0.1 | — | Mass screening of contigs |
-| DIAMOND | — | v2.1.13 | Protein alignment (Virulence/Viral) |
+| DIAMOND | v2.1.11 | v2.1.13 | Protein alignment (Virulence/Viral) |
 | Prokka | — | v1.14.5 | Prokaryotic genome annotation |
-| Prodigal | — | v2.6.3 | Gene prediction |
+| Prodigal | v2.6.1 | v2.6.3 | Gene prediction |
 | PlasmidFinder | — | v2.1.6 | Plasmid detection |
 | MAFFT | — | v7.526 | Multiple sequence alignment |
 | IQ-TREE2 | — | v2.3.4 | Phylogeny inference |
-| SAMtools | — | v1.17 | Alignment file processing |
+| SAMtools | v1.17 | v1.17 | Alignment file processing |
 | BCFtools | — | v1.17 | Variant calling / Consensus generation |
 
 ---
